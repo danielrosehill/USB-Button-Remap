@@ -1,107 +1,96 @@
 # USB-Button-Remap
 
-Remap a generic single-button USB HID device (vendor `5131:2019`) on Linux using [`keyd`](https://github.com/rvaiya/keyd). Works on Wayland (tested on Ubuntu 25.10 / KDE Plasma).
+Remap a cheap AliExpress single-button USB HID device (default: `5131:2019`) on Linux using [`keyd`](https://github.com/rvaiya/keyd). Works on Wayland (tested on Ubuntu 25.10 / KDE Plasma).
 
-Current mapping: **button → `Ctrl+Alt+Space`** — bind that combo to whatever you want in KDE, your window manager, or an app. Change the target in `usb-button.conf` if you prefer something else (e.g. `f13` for a collision-free function key).
+Use case: a one-button USB puck pressed to trigger speech-to-text / transcription. Default target is **`F13`** (collision-free — no normal keyboard has it). A toggle script switches to **`Ctrl+Alt+Space`** if you need a modifier combo instead.
 
-## The device
+See [`docs/rationale.md`](./docs/rationale.md) for why keyd over input-remapper and why F13.
 
-A generic "USB button" HID device identifying as `5131:2019`. Out of the box it sends `KEY_2` (HID usage `0x7001f`) on its keyboard interface when pressed.
+## Device
 
 ```
 $ lsusb | grep 5131
 Bus 001 Device 016: ID 5131:2019
 ```
 
-This vendor/product pair is used by various cheap single-button / footswitch / macro-pad devices. If yours reports a different key, adjust the config accordingly.
-
-## Identify what your button sends
+Out of the box it sends `KEY_2` on its keyboard interface. Confirm with:
 
 ```bash
 sudo evtest /dev/input/by-id/usb-5131_2019-event-kbd
 ```
 
-Press the button. You'll see something like:
+If your device differs, set `DEVICE_ID` and `SOURCE_KEY` in `.env` (see below).
 
-```
-Event: time ..., type 1 (EV_KEY), code 3 (KEY_2), value 1
-Event: time ..., type 1 (EV_KEY), code 3 (KEY_2), value 0
-```
-
-The `KEY_*` name is what you'll remap.
-
-## Remap with keyd
-
-### Install
+## Install
 
 ```bash
-# Debian/Ubuntu
 sudo apt install keyd
-# or build from source: https://github.com/rvaiya/keyd
-```
-
-### Config
-
-Drop this at `/etc/keyd/usb-button.conf`:
-
-```ini
-[ids]
-5131:2019
-
-[main]
-2 = C-A-space
-```
-
-The `[ids]` section scopes the remap to this USB device only — your regular `2` key on the main keyboard is untouched.
-
-keyd modifier syntax: `C-` = Ctrl, `A-` = Alt, `M-` = Super/Meta, `S-` = Shift. So `C-A-space` emits `Ctrl+Alt+Space` on press.
-
-### Enable
-
-```bash
 sudo systemctl enable --now keyd
 ```
 
-After editing the config, restart (keyd does not support reload):
+## Configure
 
 ```bash
-sudo systemctl restart keyd
+cp .env.example .env
+# edit .env if your device isn't 5131:2019 / KEY_2
 ```
 
-Verify keyd matched the device:
+Apply the default (F13) mapping:
 
 ```bash
-sudo journalctl -u keyd -n 20 | grep 5131
-# DEVICE: match    5131:2019:... /etc/keyd/usb-button.conf (HID 5131:2019)
+./scripts/apply.sh
 ```
 
-### Verify the remap
+Or pick a target:
+
+```bash
+./scripts/apply.sh f13                       # default — collision-free function key
+./scripts/apply.sh combo                     # Ctrl+Alt+Space
+./scripts/apply.sh "C-A-space"               # raw keyd RHS
+./scripts/apply.sh "macro(C-c 200 C-v)"      # multi-step macro
+```
+
+Toggle between F13 and the combo:
+
+```bash
+./scripts/toggle.sh
+```
+
+Both scripts write `/etc/keyd/usb-button.conf`, restart `keyd`, and confirm the device matched in the journal.
+
+## How it works
+
+`scripts/apply.sh` renders this config from your `.env`:
+
+```ini
+[ids]
+${DEVICE_ID}
+
+[main]
+${SOURCE_KEY} = ${TARGET}
+```
+
+The `[ids]` section scopes the remap to one `vendor:product` — your real keyboard is untouched. keyd modifier syntax: `C-` = Ctrl, `A-` = Alt, `M-` = Super, `S-` = Shift. See `man keyd` for layers, macros, and overloads.
+
+## Verify
 
 ```bash
 sudo keyd monitor
 ```
 
-Press the button. You should see the configured key combo emitted by the keyd virtual keyboard.
+Press the button; you should see the configured key emitted by the keyd virtual keyboard.
 
-## Alternative mappings
+Match log:
 
-Swap the RHS of `2 =` to pick a different target:
-
-| Target | Config |
-|---|---|
-| `Ctrl+Alt+Space` | `2 = C-A-space` |
-| `F13` (collision-free function key) | `2 = f13` |
-| `Super+Space` | `2 = M-space` |
-| Single key, e.g. `pause` | `2 = pause` |
-| Multi-step macro | `2 = macro(C-c 200 C-v)` |
-
-## Why keyd (vs udev hwdb / input-remapper / xmodmap)
-
-- **Works on Wayland** — `xmodmap` and `setxkbmap` don't.
-- **Device-scoped** — `[ids]` restricts the remap to a specific vendor:product, so it doesn't leak to your main keyboard.
-- **System-wide** — runs as a daemon, active on the TTY and across all user sessions.
-- **Declarative** — a two-line config vs. a udev hwdb entry that needs scancode hex.
+```bash
+sudo journalctl -u keyd -n 20 | grep "$DEVICE_ID"
+# DEVICE: match    5131:2019:...  /etc/keyd/usb-button.conf  (HID 5131:2019)
+```
 
 ## Files
 
-- [`usb-button.conf`](./usb-button.conf) — the keyd config, ready to drop into `/etc/keyd/`.
+- [`usb-button.conf`](./usb-button.conf) — reference config (committed default: F13).
+- [`.env.example`](./.env.example) — device ID and source key. Copy to `.env` and edit.
+- [`scripts/apply.sh`](./scripts/apply.sh) — render config from `.env`, deploy, restart keyd.
+- [`scripts/toggle.sh`](./scripts/toggle.sh) — flip between F13 and `Ctrl+Alt+Space`.
+- [`docs/rationale.md`](./docs/rationale.md) — why keyd, not input-remapper; why F13.
