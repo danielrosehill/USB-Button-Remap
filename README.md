@@ -1,8 +1,8 @@
-# USB-Button-F13-Remap
+# USB-Button-Remap
 
-Remap a generic single-button USB HID device (vendor `5131:2019`) to emit `F13` on Linux, using [`keyd`](https://github.com/rvaiya/keyd). Works on Wayland (tested on Ubuntu 25.10 / KDE Plasma).
+Remap a generic single-button USB HID device (vendor `5131:2019`) on Linux using [`keyd`](https://github.com/rvaiya/keyd). Works on Wayland (tested on Ubuntu 25.10 / KDE Plasma).
 
-F13 is a handy target: no normal keyboard has it, so it won't collide with anything, and KDE / most apps will happily accept it as a shortcut.
+Current mapping: **button → `Ctrl+Alt+Space`** — bind that combo to whatever you want in KDE, your window manager, or an app. Change the target in `usb-button.conf` if you prefer something else (e.g. `f13` for a collision-free function key).
 
 ## The device
 
@@ -49,15 +49,23 @@ Drop this at `/etc/keyd/usb-button.conf`:
 5131:2019
 
 [main]
-2 = f13
+2 = C-A-space
 ```
 
 The `[ids]` section scopes the remap to this USB device only — your regular `2` key on the main keyboard is untouched.
+
+keyd modifier syntax: `C-` = Ctrl, `A-` = Alt, `M-` = Super/Meta, `S-` = Shift. So `C-A-space` emits `Ctrl+Alt+Space` on press.
 
 ### Enable
 
 ```bash
 sudo systemctl enable --now keyd
+```
+
+After editing the config, restart (keyd does not support reload):
+
+```bash
+sudo systemctl restart keyd
 ```
 
 Verify keyd matched the device:
@@ -73,18 +81,19 @@ sudo journalctl -u keyd -n 20 | grep 5131
 sudo keyd monitor
 ```
 
-Press the button. You should see:
+Press the button. You should see the configured key combo emitted by the keyd virtual keyboard.
 
-```
-keyd virtual keyboard   0fac:0ade:...   f13 down
-keyd virtual keyboard   0fac:0ade:...   f13 up
-```
+## Alternative mappings
 
-## Using F13
+Swap the RHS of `2 =` to pick a different target:
 
-- **KDE**: System Settings → Shortcuts → add a custom shortcut, press the button to bind F13.
-- **Apps**: most apps accept F13 in their keybinding dialogs directly.
-- **Scripts**: bind via your window manager / compositor as if it were any other key.
+| Target | Config |
+|---|---|
+| `Ctrl+Alt+Space` | `2 = C-A-space` |
+| `F13` (collision-free function key) | `2 = f13` |
+| `Super+Space` | `2 = M-space` |
+| Single key, e.g. `pause` | `2 = pause` |
+| Multi-step macro | `2 = macro(C-c 200 C-v)` |
 
 ## Why keyd (vs udev hwdb / input-remapper / xmodmap)
 
