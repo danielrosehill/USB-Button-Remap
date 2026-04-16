@@ -23,10 +23,34 @@ If your device differs, set `DEVICE_ID` and `SOURCE_KEY` in `.env` (see below).
 
 ## Install
 
+### From the .deb (recommended)
+
+Download the latest `usb-button-remap_*.deb` from [Releases](https://github.com/danielrosehill/USB-Button-Remap/releases), then:
+
 ```bash
-sudo apt install keyd
+sudo apt install ./usb-button-remap_1.0.0.deb
+```
+
+This pulls in `keyd`, `python3-pyqt6`, `python3-evdev`, `polkitd`, enables keyd, and installs three commands on your PATH:
+
+- `usb-button-remap` — launch the GUI
+- `usb-button-apply <target> [--device VID:PID] [--source-key KEY]` — apply from CLI
+- `usb-button-toggle` — flip between F13 and Ctrl+Alt+Space
+
+Add yourself to the `input` group so the GUI can read evdev:
+
+```bash
+sudo usermod -aG input "$USER"   # log out/in afterwards
+```
+
+### From source (dev)
+
+```bash
+sudo apt install keyd python3-pyqt6 python3-evdev
 sudo systemctl enable --now keyd
 ```
+
+Then run `./scripts/gui.sh` or `./scripts/apply.sh` from the repo checkout.
 
 ## Configure
 

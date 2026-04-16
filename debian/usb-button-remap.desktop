@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=USB Button Remap
+Comment=Remap a cheap USB HID button to F13 or Ctrl+Alt+Space via keyd
+Exec=usb-button-remap
+Icon=input-keyboard
+Terminal=false
+Type=Application
+Categories=Settings;HardwareSettings;Utility;
+Keywords=keyboard;hid;remap;button;keyd;transcription;
+StartupNotify=false

@@ -31,7 +31,6 @@ from PyQt6.QtWidgets import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPLY_SCRIPT = REPO_ROOT / "scripts" / "apply.sh"
 TOGGLE_SCRIPT = REPO_ROOT / "scripts" / "toggle.sh"
-ENV_FILE = REPO_ROOT / ".env"
 KEYD_CONFIG = Path("/etc/keyd/usb-button.conf")
 
 
@@ -375,15 +374,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No device", "Pick a device first."); return
 
         target = self._chosen_target()
-        try:
-            ENV_FILE.write_text(
-                f"DEVICE_ID={self.selected.vid_pid}\nSOURCE_KEY={self.source_key}\n"
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "Could not write .env", str(e)); return
-
         p = subprocess.run(
-            ["pkexec", str(APPLY_SCRIPT), target],
+            ["pkexec", str(APPLY_SCRIPT), target,
+             "--device", self.selected.vid_pid,
+             "--source-key", self.source_key],
             capture_output=True, text=True, cwd=str(REPO_ROOT),
         )
         out = (p.stdout or "") + (p.stderr or "")
