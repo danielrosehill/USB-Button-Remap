@@ -87,10 +87,37 @@ sudo journalctl -u keyd -n 20 | grep "$DEVICE_ID"
 # DEVICE: match    5131:2019:...  /etc/keyd/usb-button.conf  (HID 5131:2019)
 ```
 
+## GUI
+
+A PyQt6 wizard for the same workflow, for when you don't want to edit `.env` by hand.
+
+```bash
+sudo apt install python3-pyqt6 python3-evdev   # one-time
+./scripts/gui.sh
+```
+
+What it does:
+
+1. **Scans `/dev/input/*`** and scores each device by "is-this-a-simple-button" heuristics — few distinct keys, no mouse (`EV_REL`) or tablet (`EV_ABS`) axes, no LEDs. Likely button candidates sort to the top; your real keyboard and mouse are dimmed at the bottom.
+2. **Optional press-to-detect** — like `xev` inline. Briefly stops keyd (polkit prompt), listens on plausible devices, captures the first keypress, auto-fills the device `vendor:product` and source key, then restarts keyd.
+3. **Target chooser** — F13, Ctrl+Alt+Space, or a custom keyd expression.
+4. **Apply** — writes `.env`, runs `scripts/apply.sh` via `pkexec`, shows the keyd journal match.
+
+The GUI is a thin frontend over the same `apply.sh` / `toggle.sh` used from the CLI — no separate code path for the mapping logic.
+
+Your user must be in the `input` group to read evdev devices without root:
+
+```bash
+groups | tr ' ' '\n' | grep -q '^input$' || sudo usermod -aG input "$USER"
+# then log out / back in
+```
+
 ## Files
 
 - [`usb-button.conf`](./usb-button.conf) — reference config (committed default: F13).
 - [`.env.example`](./.env.example) — device ID and source key. Copy to `.env` and edit.
 - [`scripts/apply.sh`](./scripts/apply.sh) — render config from `.env`, deploy, restart keyd.
 - [`scripts/toggle.sh`](./scripts/toggle.sh) — flip between F13 and `Ctrl+Alt+Space`.
+- [`scripts/gui.sh`](./scripts/gui.sh) — launcher for the PyQt6 GUI.
+- [`gui/usb_button_remap.py`](./gui/usb_button_remap.py) — GUI source.
 - [`docs/rationale.md`](./docs/rationale.md) — why keyd, not input-remapper; why F13.

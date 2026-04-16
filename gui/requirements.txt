@@ -1,0 +1,5 @@
+# Prefer installing via apt on Debian/Ubuntu:
+#   sudo apt install python3-pyqt6 python3-evdev
+# pip equivalents if you must:
+PyQt6>=6.5
+evdev>=1.7
